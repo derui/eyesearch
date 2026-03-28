@@ -89,28 +89,20 @@
             (eyesearch--make-overlay-string isearch-string)))
       (pcase eyesearch-position
         ('next-line
-         (let ((next-bol
-                (save-excursion
-                  (goto-char (overlay-end isearch-overlay))
-                  (forward-line 1)
-                  (line-beginning-position))))
-           (setq eyesearch--overlay (make-overlay next-bol next-bol))
-           (overlay-put
-            eyesearch--overlay
-            'before-string
-            (concat padding overlay-text "\n"))
+         (let ((eol (save-excursion
+                      (goto-char (overlay-end isearch-overlay))
+                      (line-end-position))))
+           (setq eyesearch--overlay (make-overlay eol eol))
+           (overlay-put eyesearch--overlay 'after-string
+                        (concat "\n" padding overlay-text))
            (overlay-put eyesearch--overlay 'priority 1001)))
         ('previous-line
-         (let ((prev-eol
-                (save-excursion
-                  (goto-char (overlay-start isearch-overlay))
-                  (forward-line -1)
-                  (line-end-position))))
-           (setq eyesearch--overlay (make-overlay prev-eol prev-eol))
-           (overlay-put
-            eyesearch--overlay
-            'after-string
-            (concat "\n" padding overlay-text))
+         (let ((bol (save-excursion
+                      (goto-char (overlay-start isearch-overlay))
+                      (line-beginning-position))))
+           (setq eyesearch--overlay (make-overlay bol bol))
+           (overlay-put eyesearch--overlay 'before-string
+                        (concat padding overlay-text "\n"))
            (overlay-put eyesearch--overlay 'priority 1001)))))))
 
 (defun eyesearch--isearch-end ()
