@@ -63,8 +63,7 @@ Sets `match-data' to the closest match."
       (goto-char (window-start))
       (while (and (funcall search-fun string win-end t)
                   (<= (point) win-end))
-        (let* ((match-start (match-beginning 0))
-               (dist (abs (- match-start origin))))
+        (let* ((dist (abs (- (match-beginning 0) origin))))
           (when (< dist closest-dist)
             (setq
              closest-pos (point)
