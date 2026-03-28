@@ -5,6 +5,11 @@ When you start searching, the first match jumped to is the *closest one to your 
 
 Uses =isearch-search-fun-function=, the official isearch extension point.
 
+** Motivation
+I started to use =avy-isearch= for daily use, it had one annoying thing. When I want to go to previous point of text, but I need to decide to use isearch *backward/forward* each time.
+When use forward and match the forward, *the point I want to go to is invisible*. oops.
+This tiny package resolves to the pitfall of it. But you do not need use this if default isearch's behavior is not problem.
+
 * Install
 Use such a way to install:
 
@@ -27,4 +32,3 @@ I recommend to use =elpaca= for speed. If you want to stay standard way, use =pa
 #+end_src
 
 Then use =C-s= / =C-r= as usual. The first match will jump to the closest visible match instead of the nearest one by buffer position.
-
