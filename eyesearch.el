@@ -37,13 +37,12 @@
   :group 'isearch
   :prefix "eyesearch-")
 
-(defcustom eyesearch-position 'after-line
+(defcustom eyesearch-position 'next-line
   "Position of the eyesearch overlay relative to the line of the match.
-`after-line' displays the message at the end of the match's line.
-`before-line' displays the message at the beginning of the match's line."
-  :type
-  '(choice (const :tag "After line" after-line)
-           (const :tag "Before line" before-line))
+`next-line' displays the message on the line after the match's line.
+`previous-line' displays the message on the line before the match's line."
+  :type '(choice (const :tag "Next line" next-line)
+                 (const :tag "Previous line" previous-line))
   :group 'eyesearch)
 
 (defcustom eyesearch-format " [%s]"
@@ -82,22 +81,23 @@
     (let* ((overlay-text
             (eyesearch--make-overlay-string isearch-string)))
       (pcase eyesearch-position
-        ('after-line
-         (let ((eol
-                (save-excursion
-                  (goto-char (overlay-end isearch-overlay))
-                  (line-end-position))))
-           (setq eyesearch--overlay (make-overlay eol eol))
-           (overlay-put eyesearch--overlay 'after-string overlay-text)
+        ('next-line
+         (let ((next-bol (save-excursion
+                           (goto-char (overlay-end isearch-overlay))
+                           (forward-line 1)
+                           (line-beginning-position))))
+           (setq eyesearch--overlay (make-overlay next-bol next-bol))
+           (overlay-put eyesearch--overlay 'before-string
+                        (concat overlay-text "\n"))
            (overlay-put eyesearch--overlay 'priority 1001)))
-        ('before-line
-         (let ((bol
-                (save-excursion
-                  (goto-char (overlay-start isearch-overlay))
-                  (line-beginning-position))))
-           (setq eyesearch--overlay (make-overlay bol bol))
-           (overlay-put
-            eyesearch--overlay 'before-string overlay-text)
+        ('previous-line
+         (let ((prev-eol (save-excursion
+                           (goto-char (overlay-start isearch-overlay))
+                           (forward-line -1)
+                           (line-end-position))))
+           (setq eyesearch--overlay (make-overlay prev-eol prev-eol))
+           (overlay-put eyesearch--overlay 'after-string
+                        (concat "\n" overlay-text))
            (overlay-put eyesearch--overlay 'priority 1001)))))))
 
 (defun eyesearch--isearch-end ()
