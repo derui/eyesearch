@@ -1,0 +1,15 @@
+* EyeSearch - Eye care for isearch
+This tiny package provides a single minor mode, =eyesearch-mode= to displaying isearch-message on overlay below/follow the current isearch's overlay.
+
+* Install
+Use such a way to install:
+
+- use =package.el= for version control
+- use =straight.el= or =elpaca=
+- Just download =eyesearch.el= and put it to =load-path=
+
+
+#+begin_quote
+I recommend to use =elpaca= for speed. If you want to stay standard way, use =package.el=
+#+end_quote
+
