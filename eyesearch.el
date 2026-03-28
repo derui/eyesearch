@@ -1,9 +1,9 @@
-;;; eyesearch.el --- Display isearch message on overlay  -*- lexical-binding: t; -*-
+;;; eyesearch.el --- Visible-window-first isearch  -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2026 derui
 
 ;; Author: derui
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, search
 ;; URL: https://github.com/derui/eyesearch
@@ -25,114 +25,120 @@
 
 ;;; Commentary:
 
-;; EyeSearch provides a minor mode `eyesearch-mode' that displays the
-;; current isearch message on an overlay near the isearch match, making
-;; it easier to see what you are searching for without looking at the
-;; minibuffer.
+;; EyeSearch enhances isearch by prioritizing matches visible in the
+;; current window.  When you start searching, the first match jumped to
+;; is the closest one to your cursor within the visible window.  If no
+;; match is visible, it falls back to standard isearch behavior.
+;;
+;; This uses `isearch-search-fun-function', the official isearch
+;; extension point.  All other isearch behavior (C-s/C-r cycling,
+;; keybindings, regexp support) remains unchanged.
 
 ;;; Code:
 
 (defgroup eyesearch nil
-  "Display isearch message on overlay."
+  "Visible-window-first isearch."
   :group 'isearch
   :prefix "eyesearch-")
 
-(defcustom eyesearch-position 'next-line
-  "Position of the eyesearch overlay relative to the line of the match.
-`next-line' displays the message on the line after the match's line.
-`previous-line' displays the message on the line before the match's line."
-  :type
-  '(choice (const :tag "Next line" next-line)
-           (const :tag "Previous line" previous-line))
-  :group 'eyesearch)
+(defvar-local eyesearch--original-search-fun nil
+  "The original value of `isearch-search-fun-function' before eyesearch.")
 
-(defcustom eyesearch-format " [%s]"
-  "Format string for the eyesearch overlay.
-%s is replaced with the isearch message string."
-  :type 'string
-  :group 'eyesearch)
+(defvar-local eyesearch--last-string ""
+  "The isearch string from the previous search-fun call.
+Used to distinguish typing (string changed) from C-s/C-r repeat (string same).")
 
-(defface eyesearch-overlay
-  '((t :inherit isearch
-       :weight bold))
-  "Face used for the eyesearch overlay text."
-  :group 'eyesearch)
+(defun eyesearch--find-closest-visible (string search-fun)
+  "Find the closest visible match for STRING using SEARCH-FUN.
+Scans the visible window for all matches and returns the position
+of the match-end closest to point, or nil if none found.
+Sets `match-data' to the closest match."
+  (let ((win-end (window-end nil t))
+        (origin (point))
+        (closest-pos nil)
+        (closest-dist most-positive-fixnum)
+        (closest-match-data nil)
+        (case-fold-search isearch-case-fold-search))
+    (save-excursion
+      (goto-char (window-start))
+      (while (and (funcall search-fun string win-end t)
+                  (<= (point) win-end))
+        (let* ((match-start (match-beginning 0))
+               (dist (abs (- match-start origin))))
+          (when (< dist closest-dist)
+            (setq
+             closest-pos (point)
+             closest-dist dist
+             closest-match-data (match-data))))))
+    (when closest-pos
+      (set-match-data closest-match-data))
+    closest-pos))
 
-(defvar-local eyesearch--overlay nil
-  "The overlay used to display the isearch message.")
+(defun eyesearch--make-search-fun (default-search-fun)
+  "Return a search function that tries visible window first.
+DEFAULT-SEARCH-FUN is the standard search function (e.g. `search-forward')."
+  (lambda (string &optional bound noerror count)
+    (if (and (not (string= string eyesearch--last-string))
+             (not bound))
+        ;; User is typing: search visible window first
+        (let ((visible-pos
+               (eyesearch--find-closest-visible
+                string default-search-fun)))
+          (setq eyesearch--last-string string)
+          (if visible-pos
+              (progn
+                (goto-char visible-pos)
+                (point))
+            ;; No visible match, fall back to default
+            (funcall default-search-fun string bound noerror count)))
+      ;; C-s/C-r repeat or bounded search: default behavior
+      (funcall default-search-fun string bound noerror count))))
 
-(defun eyesearch--delete-overlay ()
-  "Delete the eyesearch overlay if it exists."
-  (when (overlayp eyesearch--overlay)
-    (delete-overlay eyesearch--overlay)
-    (setq eyesearch--overlay nil)))
+(defun eyesearch--search-fun-function ()
+  "Return the eyesearch search function for isearch.
+This wraps the default search function to try visible matches first."
+  (let ((default-fun
+         (if eyesearch--original-search-fun
+             (funcall eyesearch--original-search-fun)
+           (isearch-search-fun-default))))
+    (eyesearch--make-search-fun default-fun)))
 
-(defun eyesearch--make-overlay-string (message)
-  "Create the display string for the overlay from MESSAGE."
-  (let ((text (format eyesearch-format message)))
-    (propertize text 'face 'eyesearch-overlay)))
-
-(defun eyesearch--update ()
-  "Update the eyesearch overlay with the current isearch state."
-  (eyesearch--delete-overlay)
-  (when (and isearch-mode
-             isearch-overlay
-             (overlay-buffer isearch-overlay)
-             (not (string-empty-p isearch-string)))
-    (let* ((match-col (save-excursion
-                       (goto-char (overlay-start isearch-overlay))
-                       (current-column)))
-           (overlay-text (eyesearch--make-overlay-string isearch-string))
-           (target-eol
-            (pcase eyesearch-position
-              ('next-line
-               (save-excursion
-                 (goto-char (overlay-end isearch-overlay))
-                 (forward-line 1)
-                 (line-end-position)))
-              ('previous-line
-               (save-excursion
-                 (goto-char (overlay-start isearch-overlay))
-                 (forward-line -1)
-                 (line-end-position)))))
-           (line-col (save-excursion
-                       (goto-char target-eol)
-                       (current-column)))
-           (padding (if (< line-col match-col)
-                        (make-string (- match-col line-col) ?\s)
-                      " ")))
-      (setq eyesearch--overlay (make-overlay target-eol target-eol))
-      (overlay-put eyesearch--overlay 'after-string
-                   (concat padding overlay-text))
-      (overlay-put eyesearch--overlay 'priority 1001))))
+(defun eyesearch--isearch-start ()
+  "Reset state when isearch starts."
+  (setq eyesearch--last-string ""))
 
 (defun eyesearch--isearch-end ()
-  "Clean up the eyesearch overlay when isearch ends."
-  (eyesearch--delete-overlay))
+  "Clean up when isearch ends."
+  (setq eyesearch--last-string ""))
 
-(defun eyesearch--setup-hooks ()
-  "Set up hooks for eyesearch."
-  (add-hook 'isearch-update-post-hook #'eyesearch--update nil t)
+(defun eyesearch--setup ()
+  "Set up eyesearch in the current buffer."
+  (setq eyesearch--original-search-fun isearch-search-fun-function)
+  (setq-local isearch-search-fun-function
+              #'eyesearch--search-fun-function)
+  (add-hook 'isearch-mode-hook #'eyesearch--isearch-start nil t)
   (add-hook 'isearch-mode-end-hook #'eyesearch--isearch-end nil t))
 
-(defun eyesearch--teardown-hooks ()
-  "Remove hooks for eyesearch."
-  (remove-hook 'isearch-update-post-hook #'eyesearch--update t)
-  (remove-hook 'isearch-mode-end-hook #'eyesearch--isearch-end t)
-  (eyesearch--delete-overlay))
+(defun eyesearch--teardown ()
+  "Remove eyesearch from the current buffer."
+  (setq-local isearch-search-fun-function
+              eyesearch--original-search-fun)
+  (setq eyesearch--original-search-fun nil)
+  (remove-hook 'isearch-mode-hook #'eyesearch--isearch-start t)
+  (remove-hook 'isearch-mode-end-hook #'eyesearch--isearch-end t))
 
 ;;;###autoload
 (define-minor-mode eyesearch-mode
-  "Minor mode to display isearch message on an overlay near the match.
-When enabled, the current isearch string is displayed as an overlay
-next to or below the isearch match, so you don't have to look at the
-minibuffer."
+  "Minor mode for visible-window-first isearch.
+When enabled, the first match isearch jumps to is the closest one
+within the visible window.  If no match is visible, falls back to
+standard isearch.  All other isearch behavior is unchanged."
   :lighter " EyeS"
   :group
   'eyesearch
   (if eyesearch-mode
-      (eyesearch--setup-hooks)
-    (eyesearch--teardown-hooks)))
+      (eyesearch--setup)
+    (eyesearch--teardown)))
 
 ;;;###autoload
 (define-globalized-minor-mode global-eyesearch-mode
