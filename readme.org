@@ -1,5 +1,4 @@
 * EyeSearch - Visible-window-first isearch
-
 EyeSearch enhances isearch by prioritizing matches visible in the current window.
 
 When you start searching, the first match jumped to is the *closest one to your cursor within the visible window*. If no match is visible, it falls back to standard isearch behavior. All other isearch behavior (=C-s= / =C-r= cycling, keybindings, regexp support) remains unchanged.

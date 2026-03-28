@@ -97,11 +97,10 @@ DEFAULT-SEARCH-FUN is the standard search function (e.g. `search-forward')."
 (defun eyesearch--search-fun-function ()
   "Return the eyesearch search function for isearch.
 This wraps the default search function to try visible matches first."
-  (let ((default-fun
-         (if eyesearch--original-search-fun
-             (funcall eyesearch--original-search-fun)
-           (isearch-search-fun-default))))
-    (eyesearch--make-search-fun default-fun)))
+  (eyesearch--make-search-fun
+   (if eyesearch--original-search-fun
+       (funcall eyesearch--original-search-fun)
+     (isearch-search-fun-default))))
 
 (defun eyesearch--isearch-start ()
   "Reset state when isearch starts."
