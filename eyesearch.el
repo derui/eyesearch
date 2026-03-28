@@ -37,12 +37,13 @@
   :group 'isearch
   :prefix "eyesearch-")
 
-(defcustom eyesearch-position 'after-match
-  "Position of the eyesearch overlay relative to the isearch match.
-`after-match' displays the message right after the current match.
-`below-match' displays the message on the line below the current match."
-  :type '(choice (const :tag "After match" after-match)
-                 (const :tag "Below match" below-match))
+(defcustom eyesearch-position 'after-line
+  "Position of the eyesearch overlay relative to the line of the match.
+`after-line' displays the message at the end of the match's line.
+`before-line' displays the message at the beginning of the match's line."
+  :type
+  '(choice (const :tag "After line" after-line)
+           (const :tag "Before line" before-line))
   :group 'eyesearch)
 
 (defcustom eyesearch-format " [%s]"
@@ -78,21 +79,25 @@
              isearch-overlay
              (overlay-buffer isearch-overlay)
              (not (string-empty-p isearch-string)))
-    (let* ((match-end (overlay-end isearch-overlay))
-           (overlay-text (eyesearch--make-overlay-string isearch-string)))
+    (let* ((overlay-text
+            (eyesearch--make-overlay-string isearch-string)))
       (pcase eyesearch-position
-        ('after-match
-         (setq eyesearch--overlay (make-overlay match-end match-end))
-         (overlay-put eyesearch--overlay 'after-string overlay-text)
-         (overlay-put eyesearch--overlay 'priority 1001))
-        ('below-match
-         (let ((below-pos (save-excursion
-                            (goto-char match-end)
-                            (forward-line 1)
-                            (line-beginning-position))))
-           (setq eyesearch--overlay (make-overlay below-pos below-pos))
-           (overlay-put eyesearch--overlay 'before-string
-                        (concat overlay-text "\n"))
+        ('after-line
+         (let ((eol
+                (save-excursion
+                  (goto-char (overlay-end isearch-overlay))
+                  (line-end-position))))
+           (setq eyesearch--overlay (make-overlay eol eol))
+           (overlay-put eyesearch--overlay 'after-string overlay-text)
+           (overlay-put eyesearch--overlay 'priority 1001)))
+        ('before-line
+         (let ((bol
+                (save-excursion
+                  (goto-char (overlay-start isearch-overlay))
+                  (line-beginning-position))))
+           (setq eyesearch--overlay (make-overlay bol bol))
+           (overlay-put
+            eyesearch--overlay 'before-string overlay-text)
            (overlay-put eyesearch--overlay 'priority 1001)))))))
 
 (defun eyesearch--isearch-end ()
@@ -117,7 +122,8 @@ When enabled, the current isearch string is displayed as an overlay
 next to or below the isearch match, so you don't have to look at the
 minibuffer."
   :lighter " EyeS"
-  :group 'eyesearch
+  :group
+  'eyesearch
   (if eyesearch-mode
       (eyesearch--setup-hooks)
     (eyesearch--teardown-hooks)))
