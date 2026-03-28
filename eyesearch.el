@@ -79,30 +79,28 @@
              isearch-overlay
              (overlay-buffer isearch-overlay)
              (not (string-empty-p isearch-string)))
-    (let* ((padding
-            (make-string
-             (save-excursion
-               (goto-char (overlay-start isearch-overlay))
-               (current-column))
-             ?\s))
-           (overlay-text
-            (eyesearch--make-overlay-string isearch-string)))
+    (let* ((match-col (save-excursion
+                       (goto-char (overlay-start isearch-overlay))
+                       (current-column)))
+           (overlay-text (eyesearch--make-overlay-string isearch-string)))
       (pcase eyesearch-position
         ('next-line
-         (let ((eol (save-excursion
+         (let ((pos (save-excursion
                       (goto-char (overlay-end isearch-overlay))
-                      (line-end-position))))
-           (setq eyesearch--overlay (make-overlay eol eol))
-           (overlay-put eyesearch--overlay 'after-string
-                        (concat "\n" padding overlay-text))
+                      (forward-line 1)
+                      (move-to-column match-col)
+                      (point))))
+           (setq eyesearch--overlay (make-overlay pos pos))
+           (overlay-put eyesearch--overlay 'after-string overlay-text)
            (overlay-put eyesearch--overlay 'priority 1001)))
         ('previous-line
-         (let ((bol (save-excursion
+         (let ((pos (save-excursion
                       (goto-char (overlay-start isearch-overlay))
-                      (line-beginning-position))))
-           (setq eyesearch--overlay (make-overlay bol bol))
-           (overlay-put eyesearch--overlay 'before-string
-                        (concat padding overlay-text "\n"))
+                      (forward-line -1)
+                      (move-to-column match-col)
+                      (point))))
+           (setq eyesearch--overlay (make-overlay pos pos))
+           (overlay-put eyesearch--overlay 'after-string overlay-text)
            (overlay-put eyesearch--overlay 'priority 1001)))))))
 
 (defun eyesearch--isearch-end ()
