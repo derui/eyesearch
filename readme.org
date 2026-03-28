@@ -32,3 +32,10 @@ I recommend to use =elpaca= for speed. If you want to stay standard way, use =pa
 #+end_src
 
 Then use =C-s= / =C-r= as usual. The first match will jump to the closest visible match instead of the nearest one by buffer position.
+
+* Notice
+If you look at the commit history, you'll see this package was created by vibe-coding. I used copilot to write this package. It was created for my own purposes.
+If you want to use it, please keep that in mind.
+If you are concerned about that, please stop using this package or use it carefully.
+
+I have searched for similar packages, but I couldn't find on that matches my purposes. If you know of/find such a package, please let me know :).
