@@ -111,9 +111,10 @@ This wraps the default search function to try visible matches first."
 
 (defun eyesearch--setup ()
   "Set up eyesearch in the current buffer."
-  (setq eyesearch--original-search-fun isearch-search-fun-function)
-  (setq-local isearch-search-fun-function
-              #'eyesearch--search-fun-function)
+  (unless (eq isearch-search-fun-function #'eyesearch--search-fun-function)
+    (setq eyesearch--original-search-fun isearch-search-fun-function)
+    (setq-local isearch-search-fun-function
+                #'eyesearch--search-fun-function))
   (add-hook 'isearch-mode-hook #'eyesearch--isearch-start nil t)
   (add-hook 'isearch-mode-end-hook #'eyesearch--isearch-end nil t))
 
