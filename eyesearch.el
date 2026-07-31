@@ -61,33 +61,34 @@ Sets `match-data' to the closest match."
         (case-fold-search isearch-case-fold-search))
     (save-excursion
       (goto-char (window-start))
-      (while (and (funcall search-fun string win-end t)
-                  (<= (point) win-end))
+      (while (and
+              (funcall search-fun string win-end t)
+              (<= (point) win-end))
         (let* ((dist (abs (- (match-beginning 0) origin))))
           (when (< dist closest-dist)
             (setq
-             closest-pos (point)
+             closest-pos
+             (point)
              closest-dist dist
-             closest-match-data (match-data))))))
-    (when closest-pos
-      (set-match-data closest-match-data))
+             closest-match-data
+             (match-data))))))
+    (when closest-pos (set-match-data closest-match-data))
     closest-pos))
 
 (defun eyesearch--make-search-fun (default-search-fun)
   "Return a search function that tries visible window first.
 DEFAULT-SEARCH-FUN is the standard search function (e.g. `search-forward')."
   (lambda (string &optional bound noerror count)
-    (if (and (not (string= string eyesearch--last-string))
-             (not bound))
+    (if (and
+         (not (string= string eyesearch--last-string))
+         (not bound))
         ;; User is typing: search visible window first
         (let ((visible-pos
                (eyesearch--find-closest-visible
                 string default-search-fun)))
           (setq eyesearch--last-string string)
           (if visible-pos
-              (progn
-                (goto-char visible-pos)
-                (point))
+              (progn (goto-char visible-pos) (point))
             ;; No visible match, fall back to default
             (funcall default-search-fun string bound noerror count)))
       ;; C-s/C-r repeat or bounded search: default behavior
@@ -133,11 +134,8 @@ When enabled, the first match isearch jumps to is the closest one
 within the visible window.  If no match is visible, falls back to
 standard isearch.  All other isearch behavior is unchanged."
   :lighter " EyeS"
-  :group
-  'eyesearch
-  (if eyesearch-mode
-      (eyesearch--setup)
-    (eyesearch--teardown)))
+  :group 'eyesearch
+  (if eyesearch-mode (eyesearch--setup) (eyesearch--teardown)))
 
 ;;;###autoload
 (define-globalized-minor-mode global-eyesearch-mode
